@@ -1,0 +1,185 @@
+---
+title: "10l_extraction"
+author: "Kuntal Pithwa"
+date: "10/10/2019"
+output: html_document
+---
+
+
+# Extracting 10k reports from 10_k_fillings dataset
+
+## Clear the environment
+
+```{r}
+rm(list = ls(all = T))
+```
+
+## Read the dataset
+
+```{r}
+tenk = read.csv('10k_filing_info_train_links-1570100710859.csv')
+head(tenk)
+
+```
+
+
+## Load Relevant Packages
+
+
+
+```{r}
+#install.packages('dplyr')
+library(dplyr)
+```
+
+```{r}
+#install.packages('stringr')
+library(stringr)
+```
+
+```{r}
+#install.packages('qdapRegex')
+library(qdapRegex)
+```
+
+## Extract 10-K report and clean it.
+
+"https:www.sec.gov/Archives/edgar/1000180/0001000180-13-000009.txt"
+
+If you visit this link, you will find the exact document which will be parsed by the function. It is a mess of HTML and XBRL code.
+
+**(1) 'read' variable:**
+
+The readLines() function will read every line of a text document into R. Since the 10-K raw filings follow the UTF-8 format, it has been specified within the parsing algorithm to make it run slightly faster.
+
+**(2) 'one' variable:**
+
+readLines() creates a vector containing all the text of the text filing. Each element in the vector corresponds to a new line detected within the text document it is reading. However, for parsing purposes, one element containing the entire text document is needed. The str_c() function will concatenate all the elements of the vector together into a one-element vector. The collapse = " " separates each concatenation with a space.
+
+**(3) 'two' variable:**
+
+This function takes in the one-element vector of text, and returns only the text corresponding to the beginning and end of the actual 10-K text.
+
+The str_extract() receives a vector of text, from which a subset of text according to the pattern specifications is returned. We use regular expressions, a grammar for text parsing commands, to control the str_extract() function.
+
+The (?s) treats every line within the vector as one single string. This may be unnecessary as all lines were split into different elements of the vector by the readLines() command, then pasted together again by the str_c() command with a space, rather than a line, acting as the new separator.
+
+The (?m) will look across multiple lines for the specified pattern. Again, this may be unnecessary.
+
+<TYPE>10-K denotes the beginning of the 10-K filing within the text document. This is where the str_extract() function begins to return the subset of text.
+
+. represents any character value, no matter what it is. * represents any quantity of character values. When . and * are combined together, all the text from that point on is returned. ? turns this .* syntax "lazy", meaning that the function will stop returning text the moment it comes across the next pattern.
+
+The (</TEXT>) marks the end of the 10-K filing within the text document. The moment the function comes across this <TEXT> tag, it will stop extracting text.
+
+Thus, everything between the <TYPE>10-K and the </TEXT> tags are returned.
+
+**(4) 'three' variable:**
+
+This function will delete the formatting text used to identify the 10-K section as it is not relevant data.
+
+(?i) instructs the function to ignore the case when searching for "<TYPE>". Thus, both "<type>" and "<TYPE>" would match.
+
+.*?, again, matches everything up until the first appearance of the next pattern.
+
+(?=<) is a positive look-ahead statement. The ?= looks for an appearance of "<", at which point the function halts and returns everything it is specified to return, except the "<" character.
+
+In this case, everything between <TYPE> and < is returned, without including the final <.
+
+**(5)'four' to 'eight' variables:**
+
+Again, five more formatting tags are deleted. These tags are more or less the same across all financial statements and hold no useful information. 
+
+**(6) 'nine' variable:**
+
+the str_replace_all() function replaces all instances of the pattern it can find within the vector. The specified pattern we are looking for can be "> Item", ">Item", or "^Item", with case insensitivity since the (?i) tag is present. The "|" symbol represents the "or" operator which allows us to tag any of the above patterns.
+
+Each of the valid patterns is replaced with ">°Item". Thus, users of the cleaned text which will have all HTML tags removed can still identify each section by looking for the ° symbol.
+
+**(7) 'ten' variable:**
+
+This function removes all HTML tags. Anything enclosed by the < and > symbols, including the two symbols are replaced by a space.
+
+**(8) 'eleven' variable:**
+
+This function replaces all Unicode strings. For example, &#151; is a Unicode string representing the "-" character. Because no Unicode-to-ASCII translator could be found, and because Unicode symbols do not appear prominently among nearly all relevant financial words, Unicode strings were deleted and replaced with a space.
+
+The {2,6} symbol means that the function will search for between 2 and 6 instances of ., and must find a ";" character in that time. Recall that . represents any character. Thus, when the function finds a & character, if there is a ; symbol within 2 and 6 characters, the section between & and ;, inclusive, will be replaced. Otherwise, everything is left as is.
+
+**(9) 'twelve' variable:**
+
+This function replaces multiple spaces with a single space. The + operator means that the previous pattern can be repeated any number of times. In this case, " Item" with two spaces will be changed to " Item" with one space.
+
+**Note**
+
+For the variable 'thirteen' to 'sixteen' which are commented, I tried to extract only certain sections of the 10-K report. It does work for few documents, for the rest it returs 'NA'. The formatting of the regex needs to be more generalized.
+
+```{r}
+
+    
+```
+
+
+
+```{r}
+tenk_text = c()
+count = 0
+for (i in tenk$X10k_link){
+  
+  link = i
+  read = try(readLines(link, encoding = 'utf-8'))
+  if(class(read) == "try-error")
+  {
+    tenk_text = append(tenk_text, '?')
+  }else{
+    read = readLines(link, encoding = 'utf-8')
+    one =  str_c(read,collapse = " ")
+    two = str_extract(string = one, pattern = "(?s)(?m)<TYPE>10-K.*?(</TEXT>)") 
+    three = str_replace(string = two, pattern = "((?i)<TYPE>).*?(?=<)", replacement = "") 
+    four = str_replace(string = three, pattern = "((?i)<SEQUENCE>).*?(?=<)", replacement = "") 
+    five = str_replace(string = four, pattern = "((?i)<FILENAME>).*?(?=<)", replacement = "") 
+    six = str_replace(string = five, pattern = "((?i)<DESCRIPTION>).*?(?=<)", replacement = "") 
+    seven = str_replace(string = six, pattern = "(?s)(?i)<head>.*?</head>", replacement = "") 
+    eight = str_replace(string = seven, pattern = "(?s)(?i)<(table).*?(</table>)", replacement = "") 
+    nine = str_replace_all(string = eight, pattern = "(?s)(?i)(?m)> +Item|>Item|^Item", replacement = ">°Item")
+    ten = str_replace_all(string = nine, pattern = "(?s)<.*?>", replacement = " ") 
+    eleven = str_replace_all(string = ten, pattern = "&(.{2,6});", replacement = " ") 
+    twelve = str_replace_all(string = eleven, pattern = "(?s) +", replacement = " ")
+  #thirteen = str_extract(string = twelve, pattern = "(?s)(?i)°Item 1A.*?°Item")
+  #a = str_extract(string = twelve, pattern = "(?s)(?i)°Item 7A.*?°Item")
+  #thirteen = rm_between(twelve, '°Item 1. Business', '°Item 1A. Risk Factors', extract = T)
+  #fourteen = rm_between(twelve, '°Item 1A. Risk Factors', '°Item 1B. Unresolved Staff Comments', extract = T)
+  #fifteen = rm_between(twelve, "°Item 7. Management s Discussion and Analysis of Financial Condition and Results of Operations", "°Item 7A. Quantitative and Qualitative Disclosures About Market Risk", extract = T)
+  #text = paste(thirteen,fourteen, fifteen, sep=" ")
+    tenk_text = append(tenk_text, twelve)
+    count = count + 1
+    print(count)
+    
+  }
+}  
+```
+
+length(tenk_text)
+
+
+
+
+```{r}
+second_half = tenk[1001:1239, ]
+
+second_half$tenk_data = tenk_text[1:239]
+```
+
+```{r}
+third_half = tenk[1241: 1458, ]
+third_half$tenk_data = tenk_text[241:458]
+
+```
+
+## Export to csv file
+
+```{r}
+write.csv(second_half, file = 'train_second_half.csv')
+write.csv(third_half, file = 'train_third_half.csv')
+```
+
