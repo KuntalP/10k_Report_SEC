@@ -21,6 +21,7 @@ tenk = read.csv('10k_filing_info_train_links-1570100710859.csv')
 head(tenk)
 
 ```
+The tenk dataset contains links to various links which contain the SEC report. The column 'X10k_Link' contain these links.
 
 
 ## Load Relevant Packages
@@ -145,41 +146,28 @@ for (i in tenk$X10k_link){
     ten = str_replace_all(string = nine, pattern = "(?s)<.*?>", replacement = " ") 
     eleven = str_replace_all(string = ten, pattern = "&(.{2,6});", replacement = " ") 
     twelve = str_replace_all(string = eleven, pattern = "(?s) +", replacement = " ")
-  #thirteen = str_extract(string = twelve, pattern = "(?s)(?i)°Item 1A.*?°Item")
-  #a = str_extract(string = twelve, pattern = "(?s)(?i)°Item 7A.*?°Item")
-  #thirteen = rm_between(twelve, '°Item 1. Business', '°Item 1A. Risk Factors', extract = T)
-  #fourteen = rm_between(twelve, '°Item 1A. Risk Factors', '°Item 1B. Unresolved Staff Comments', extract = T)
-  #fifteen = rm_between(twelve, "°Item 7. Management s Discussion and Analysis of Financial Condition and Results of Operations", "°Item 7A. Quantitative and Qualitative Disclosures About Market Risk", extract = T)
-  #text = paste(thirteen,fourteen, fifteen, sep=" ")
-    tenk_text = append(tenk_text, twelve)
+    thirteen = rm_between(twelve, '°Item 1. Business', '°Item 1A. Risk Factors', extract = T)
+    fourteen = rm_between(twelve, '°Item 1A. Risk Factors', '°Item 1B. Unresolved Staff Comments', extract = T)
+    fifteen = rm_between(twelve, "°Item 7. Management s Discussion and Analysis of Financial Condition and Results of Operations", "°Item 7A. Quantitative and Qualitative Disclosures About Market Risk", extract = T)
+    text = paste(thirteen,fourteen, fifteen, sep=" ")
+    tenk_text = append(tenk_text, text)
     count = count + 1
     print(count)
     
   }
 }  
-```
 
+```{r}
 length(tenk_text)
-
-
-
-
-```{r}
-second_half = tenk[1001:1239, ]
-
-second_half$tenk_data = tenk_text[1:239]
 ```
 
 ```{r}
-third_half = tenk[1241: 1458, ]
-third_half$tenk_data = tenk_text[241:458]
-
+tenk$tenk_data = tenk_text
 ```
 
 ## Export to csv file
 
 ```{r}
-write.csv(second_half, file = 'train_second_half.csv')
-write.csv(third_half, file = 'train_third_half.csv')
+write.csv(tenk, file = 'tenk_text_extracted.csv')
 ```
 
